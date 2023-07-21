@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
+import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
 error Lottery_NotEnoughFund();
 
-contract Lottery {
+contract Lottery is VRFConsumerBaseV2 {
     //State Variables
     uint256 private immutable i_entranceFee;
     address payable[] private s_players;
 
-    constructor(uint256 entranceFee) {
+    //EVENTS
+
+    event LotteryEnter(address indexed player);
+
+    constructor(
+        address linkerAddress,
+        uint256 entranceFee
+    ) VRFConsumerBaseV2(linkerAddress) {
         i_entranceFee = entranceFee;
     }
 
@@ -17,8 +26,17 @@ contract Lottery {
             revert Lottery_NotEnoughFund();
         }
         s_players.push(payable(msg.sender));
+        emit LotteryEnter(msg.sender);
     }
 
+    function LotteryRequest() external {}
+
+    function fulfillRandomWords(
+        uint256 requestId,
+        uint256[] memory randomWords
+    ) internal override {}
+
+    //View Functions
     function getEntranceFee() public view returns (uint256) {
         return i_entranceFee;
     }
