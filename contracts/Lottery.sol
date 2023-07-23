@@ -2,12 +2,29 @@
 pragma solidity ^0.8.7;
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
-import "@chainlink/contracts/src/v0.8/AutomationCompatible.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
 error Lottery_NotEnoughFund();
 error Lottery_TransferFailed();
+error LOTTERY_NOT_OPEN();
+error LOTTERY_UPKEEP_NOT_NEEDED(
+    uint256 currentBalance,
+    uint256 numplayers,
+    uint256 lotterystate
+);
 
-contract Lottery is VRFConsumerBaseV2 {
+/**
+ * @title A sample Lottery contract
+ * @author Leo Franklin
+ * @notice This is a contratct that generate random lottery for players every hour
+ * @dev This implements Chainlink VRF V2 and Automation from chainlink
+ */
+
+contract Lottery is VRFConsumerBaseV2, AutomationCompatibleInterface {
+    enum LotteryState {
+        OPEN,
+        CALCULATING
+    }
     //State Variables
     uint256 private immutable i_entranceFee;
     address payable[] private s_players;
@@ -21,7 +38,9 @@ contract Lottery is VRFConsumerBaseV2 {
     //Lottery variables
 
     address private s_recentWinner;
-
+    LotteryState private s_lotteryState;
+    uint256 private s_lastTimeStamp;
+    uint256 private immutable i_interval;
     //EVENTS
 
     event LotteryEnter(address indexed player);
@@ -33,24 +52,55 @@ contract Lottery is VRFConsumerBaseV2 {
         uint256 entranceFee,
         bytes32 gaslane,
         uint64 subid,
-        uint32 callbackGasLimit
+        uint32 callbackGasLimit,
+        uint256 interval
     ) VRFConsumerBaseV2(linkerAddress) {
         i_entranceFee = entranceFee;
         i_vrfCoordinator = VRFCoordinatorV2Interface(linkerAddress);
         i_gasLane = gaslane;
         i_subscriptionId = subid;
         i_callbackGasLimit = callbackGasLimit;
+        s_lotteryState = LotteryState.OPEN;
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
     }
 
     function enterLottery() public payable {
         if (msg.value < i_entranceFee) {
             revert Lottery_NotEnoughFund();
         }
+        if (s_lotteryState != LotteryState.OPEN) {
+            revert LOTTERY_NOT_OPEN();
+        }
         s_players.push(payable(msg.sender));
         emit LotteryEnter(msg.sender);
     }
 
-    function LotteryRequest() external {
+    function checkUpkeep(
+        bytes memory /* checkData */
+    )
+        public
+        override
+        returns (bool upkeepNeeded, bytes memory /* performData */)
+    {
+        bool isOpen = (LotteryState.OPEN == s_lotteryState);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayers = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+        upkeepNeeded = (isOpen && hasPlayers && timePassed && hasBalance);
+    }
+
+    function performUpkeep(bytes calldata /*performData*/) external override {
+        (bool upKeep, ) = checkUpkeep("");
+        if (!upKeep) {
+            revert LOTTERY_UPKEEP_NOT_NEEDED(
+                address(this).balance,
+                s_players.length,
+                uint256(s_lotteryState)
+            );
+        }
+
+        s_lotteryState = LotteryState.CALCULATING;
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane,
             i_subscriptionId,
@@ -62,13 +112,15 @@ contract Lottery is VRFConsumerBaseV2 {
     }
 
     function fulfillRandomWords(
-        uint256 requestId,
+        uint256 /*requestId*/,
         uint256[] memory randomWords
     ) internal override {
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
-
+        s_lotteryState = LotteryState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
         (bool success, ) = recentWinner.call{value: address(this).balance}("");
 
         if (!success) {
@@ -88,5 +140,13 @@ contract Lottery is VRFConsumerBaseV2 {
 
     function getRecentWinner() public view returns (address) {
         return s_recentWinner;
+    }
+
+    function getLotteryState() public view returns (LotteryState) {
+        return s_lotteryState;
+    }
+
+    function getNumWords() public pure returns (uint256) {
+        return NUM_OF_WORDS;
     }
 }
