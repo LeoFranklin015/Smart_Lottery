@@ -1,12 +1,12 @@
-const { network } = require("hardhat");
+const { network, ethers } = require("hardhat");
 const { developmentChain } = require("../helper-hardhat-config");
 
-const BASE_FEE = ethers.util.parseEther("0.25");
+const BASE_FEE = ethers.parseEther("0.25");
 const GAS_PRICE_LINK = 1e9;
 
-module.exports = async ({ getNamedAccouts, deployments }) => {
+module.exports = async ({ getNamedAccounts, deployments }) => {
   const { deploy, log } = deployments;
-  const { deployer } = await getNamedAccouts();
+  const { deployer } = await getNamedAccounts();
   //   const chainId = network.config.chainId;
   const args = [BASE_FEE, GAS_PRICE_LINK];
 

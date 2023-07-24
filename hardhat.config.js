@@ -32,4 +32,9 @@ module.exports = {
       default: 1,
     },
   },
+  etherscan: {
+    apiKey: {
+      sepolia: process.env.ETHERSCAN_KEY,
+    },
+  },
 };
