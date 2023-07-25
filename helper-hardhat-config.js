@@ -23,7 +23,7 @@ const networkConfig = {
   },
 };
 
-const developmentChain = ["hardhat,localhost"];
+const developmentChain = ["hardhat", "localhost"];
 
 module.exports = {
   networkConfig,
