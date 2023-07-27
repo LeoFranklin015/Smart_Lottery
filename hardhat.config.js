@@ -37,4 +37,7 @@ module.exports = {
       sepolia: process.env.ETHERSCAN_KEY,
     },
   },
+  mocha: {
+    timeout: 20000,
+  },
 };
