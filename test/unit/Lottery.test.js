@@ -187,7 +187,7 @@ const {
         });
       });
       describe("fulfillRandomWords", () => {
-        this.beforeEach(async () => {
+        beforeEach(async () => {
           await raffle.enterRaffle({ value: raffleEntranceFee });
           await network.provider.send("evm_increaseTime", [
             interval.toNumber() + 1,
