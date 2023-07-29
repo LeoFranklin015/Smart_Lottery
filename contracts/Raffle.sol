@@ -169,6 +169,8 @@
 
 // SPDX-License-Identifier: MIT
 
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
@@ -187,7 +189,7 @@ error Raffle__SendMoreToEnterRaffle();
 error Raffle__RaffleNotOpen();
 
 /**@title A sample Raffle Contract
- * @author Leo Franklin
+ * @author Patrick Collins
  * @notice This contract is for creating a sample raffle contract
  * @dev This implements the Chainlink VRF Version 2
  */
@@ -253,6 +255,15 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         emit RaffleEnter(msg.sender);
     }
 
+    /**
+     * @dev This is the function that the Chainlink Keeper nodes call
+     * they look for `upkeepNeeded` to return True.
+     * the following should be true for this to return true:
+     * 1. The time interval has passed between raffle runs.
+     * 2. The lottery is open.
+     * 3. The contract has ETH.
+     * 4. Implicity, your subscription is funded with LINK.
+     */
     function checkUpkeep(
         bytes memory /* checkData */
     )
@@ -303,6 +314,12 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         uint256 /* requestId */,
         uint256[] memory randomWords
     ) internal override {
+        // s_players size 10
+        // randomNumber 202
+        // 202 % 10 ? what's doesn't divide evenly into 202?
+        // 20 * 10 = 200
+        // 2
+        // 202 % 10 = 2
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
